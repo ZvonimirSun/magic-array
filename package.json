@@ -1,15 +1,30 @@
 {
-  "name": "vite-ts-lib-starter",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@zvonimirsun/magic-array",
   "type": "module",
+  "version": "0.0.1",
+  "description": "Manipulate arrays based on original indices, inspired by magic-string",
+  "exports": {
+    ".": {
+      "types": "./dist/magic-array.d.ts",
+      "import": "./dist/magic-array.esm.js",
+      "require": "./dist/magic-array.cjs"
+    }
+  },
+  "main": "./dist/magic-array.cjs",
+  "module": "./dist/magic-array.esm.js",
+  "types": "./dist/magic-array.d.ts",
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "postbuild": "dts-bundle-generator --config ./dts-bundle-generator.config.ts",
+    "postbuild": "dts-bundle-generator --config ./dts-bundle-generator.config.cts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint:oxlint": "oxlint . --fix -D correctness --ignore-path .gitignore",
     "lint:eslint": "eslint . --fix --cache",
     "lint": "run-s lint:*"
@@ -18,17 +33,23 @@
     "@antfu/eslint-config": "^6.1.0",
     "@tsconfig/node22": "^22.0.2",
     "@types/node": "^22.18.11",
-    "@vitejs/plugin-vue": "^6.0.1",
+    "@vitejs/plugin-vue": "^6.0.6",
     "@vue/tsconfig": "^0.8.1",
     "dts-bundle-generator": "^9.5.1",
-    "eslint": "^9.37.0",
-    "eslint-plugin-oxlint": "~1.23.0",
+    "eslint": "^10.2.1",
+    "eslint-plugin-oxlint": "^1.62.0",
     "jiti": "^2.6.1",
-    "oxlint": "~1.23.0",
-    "rolldown": "1.0.0-beta.45",
+    "npm-run-all": "^4.1.5",
+    "oxlint": "^1.62.0",
     "sass": "^1.93.2",
     "typescript": "~5.9.0",
-    "vite": "npm:rolldown-vite@latest",
+    "vite": "^8.0.10",
+    "vitest": "^3.2.0",
     "vue": "^3.5.22"
+  },
+  "pnpm": {
+    "overrides": {
+      "eslint": "^10.2.1"
+    }
   }
 }

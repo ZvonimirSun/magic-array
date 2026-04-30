@@ -1,8 +1,11 @@
 const config = {
+  compilationOptions: {
+    preferredConfigPath: './tsconfig.app.json',
+  },
   entries: [
     {
       filePath: './src/index.ts',
-      outFile: `./dist/package-name.d.ts`,
+      outFile: './dist/magic-array.d.ts',
       noCheck: false,
     },
   ],
