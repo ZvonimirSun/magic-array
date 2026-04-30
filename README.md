@@ -1,5 +1,7 @@
 # Magic Array
 
+[![Publish](https://github.com/ZvonimirSun/magic-array/actions/workflows/publish.yml/badge.svg)](https://github.com/ZvonimirSun/magic-array/actions/workflows/publish.yml) [![code style](https://antfu.me/badge-code-style.svg)](https://github.com/antfu/eslint-config) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ZvonimirSun/magic-array)
+
 基于**原始索引**操作数组 — 灵感来自 [magic-string](https://github.com/rich-harris/magic-string)。
 
 所有位置参数都指向**原始**数组的索引，而非已变更后的结果。这样在组合多次编辑（例如 AST 遍历）时，无需手动追踪偏移量的变化。
