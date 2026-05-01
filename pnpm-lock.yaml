@@ -38,6 +38,9 @@ importers:
       jiti:
         specifier: ^2.6.1
         version: 2.6.1
+      magic-string:
+        specifier: ^0.30.21
+        version: 0.30.21
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5

@@ -49,10 +49,10 @@ arr.toArray()   // ['<', 'b', '>', 'c']
 
 | 方法                                     | 位置                               |
 |----------------------------------------|----------------------------------|
-| `.prependLeft(index, item \| item[])`  | `original[index]` 之前 — **最外层**左侧 |
-| `.appendLeft(index, item \| item[])`   | `original[index]` 之前 — **最内层**左侧 |
-| `.prependRight(index, item \| item[])` | `original[index]` 之后 — **最内层**右侧 |
-| `.appendRight(index, item \| item[])`  | `original[index]` 之后 — **最外层**右侧 |
+| `.prependLeft(index, ...items)`  | `index` 边界插入 — **最外层**左侧 |
+| `.appendLeft(index, ...items)`   | `index` 边界插入 — **最内层**左侧 |
+| `.prependRight(index, ...items)` | `index` 边界插入 — **最内层**右侧 |
+| `.appendRight(index, ...items)`  | `index` 边界插入 — **最外层**右侧 |
 
 ```
 prependLeft … appendLeft  [元素]  prependRight … appendRight
@@ -68,7 +68,7 @@ prependLeft … appendLeft  [元素]  prependRight … appendRight
 
 | 方法                                         | 说明                                                                                            |
 |--------------------------------------------|-----------------------------------------------------------------------------------------------|
-| `.overwrite(start, end?, items, options?)` | 用 `items` 替换 `original[start..end)`。默认清除周边的插入内容。传入 `{ contentOnly: true }` 可保留该范围内第一个元素的周边插入。 |
+| `.overwrite(start, end?, items, options?)` | 用 `items: T[]` 替换 `original[start..end)`，语义对齐 `magic-string.overwrite()`。 |
 
 ### 移动
 
@@ -82,8 +82,8 @@ prependLeft … appendLeft  [元素]  prependRight … appendRight
 |------------------------|-------------------------------------------------------|
 | `.toArray()`           | 返回最终编辑后的数组。                                           |
 | `.toString()`          | 对最终数组执行 `JSON.stringify`。                             |
-| `.slice(start, end?)`  | 返回 `original[start..end)` 对应的编辑后子数组。若范围内有元素被移除则抛出异常。  |
-| `.snip(start, end?)`   | 克隆并仅保留 `original[start..end)` 的内容。不会携带全局 intro/outro。 |
+| `.slice(start, end?)`  | 语义对齐 `magic-string.slice(start, end?)`，返回 `T[]`。 |
+| `.snip(start, end?)`   | 语义对齐 `magic-string.snip(start, end?)`，返回新实例。 |
 | `.hasChanged()`        | 是否有过任何编辑（含 move）。                                     |
 | `.hasRemoved(index)`   | `original[index]` 是否已被移除。                             |
 | `.original(index)`     | 读取原始数组中 `index` 位置的元素。                                |
@@ -99,7 +99,7 @@ prependLeft … appendLeft  [元素]  prependRight … appendRight
 | 操作字符串                                | 操作任意类型数组                       |
 | `.prependLeft()` / `.appendLeft()`   | 语义一致                           |
 | `.prependRight()` / `.appendRight()` | 语义一致                           |
-| `.overwrite()`                       | 一致（`contentOnly` 默认保留插入内容）     |
+| `.overwrite()`                       | 语义一致（参数为 `items: T[]`）             |
 | `.move()`                            | 语义一致                           |
 | `.snip()`                            | 语义一致                           |
 | `.slice()`                           | 一致（但返回 `T[]` 而非 `MagicString`） |

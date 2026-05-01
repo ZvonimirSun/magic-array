@@ -67,56 +67,53 @@ export interface OverwriteOptions {
 // MagicArray
 // ---------------------------------------------------------------------------
 
-export class MagicArray<T> {
-  /** The original (immutable) array. */
-  private readonly _original: ReadonlyArray<T>
+type Boundary<T> = { right: T[]; left: T[] }
 
-  /**
-   * One Chunk per original element, keyed by original index.
-   * Key −1 is the sentinel that holds global intro/outro.
-   */
-  private readonly _chunks: Map<number, Chunk<T>>
+export class MagicArray<T> {
+  private readonly _original: ReadonlyArray<T>
+  private readonly _content: T[][]
+  private readonly _removed: boolean[]
+  private readonly _boundaries: Map<number, Boundary<T>>
+  private _globalPrepend: T[]
+  private _globalAppend: T[]
+  private _tailRight: T[]
+  private _order?: number[]
 
   constructor(source: T[]) {
     this._original = Object.freeze([...source])
-    this._chunks = new Map()
-
-    // Sentinel for global intro / outro
-    this._chunks.set(-1, {
-      originalIndex: -1,
-      intro: [],
-      left: [],
-      content: [],
-      right: [],
-      outro: [],
-      removed: false,
-    })
-
-    for (let i = 0; i < this._original.length; i++) {
-      this._chunks.set(i, {
-        originalIndex: i,
-        intro: [],
-        left: [],
-        content: [this._original[i]],
-        right: [],
-        outro: [],
-        removed: false,
-      })
-    }
+    this._content = this._original.map(item => [item])
+    this._removed = this._original.map(() => false)
+    this._boundaries = new Map()
+    this._globalPrepend = []
+    this._globalAppend = []
+    this._tailRight = []
   }
 
   // -------------------------------------------------------------------------
   // Private helpers
   // -------------------------------------------------------------------------
 
-  private _chunk(index: number): Chunk<T> {
-    const c = this._chunks.get(index)
-    if (c === undefined) {
-      throw new RangeError(
-        `Index ${index} is out of bounds for original array of length ${this._original.length}.`,
-      )
+  private _boundary(owner: number): Boundary<T> {
+    let b = this._boundaries.get(owner)
+    if (b === undefined) {
+      b = { right: [], left: [] }
+      this._boundaries.set(owner, b)
     }
-    return c
+    return b
+  }
+
+  private _validateBoundaryIndex(index: number): void {
+    const len = this._original.length
+    if (index < 0 || index > len)
+      throw new RangeError(`index (${index}) is out of bounds [0, ${len}].`)
+  }
+
+  private _leftOwner(index: number): number {
+    return index - 1
+  }
+
+  private _defaultOrder(): number[] {
+    return Array.from({ length: this._original.length }, (_, i) => i)
   }
 
   /** Normalise [start, end) – end defaults to start + 1. */
@@ -137,14 +134,14 @@ export class MagicArray<T> {
   /** Insert items at the very beginning of the result array. */
   prepend(items: T | T[]): this {
     const arr = Array.isArray(items) ? items : [items]
-    this._chunk(-1).intro.unshift(...arr)
+    this._globalPrepend.unshift(...arr)
     return this
   }
 
   /** Insert items at the very end of the result array. */
   append(items: T | T[]): this {
     const arr = Array.isArray(items) ? items : [items]
-    this._chunk(-1).outro.push(...arr)
+    this._globalAppend.push(...arr)
     return this
   }
 
@@ -156,9 +153,9 @@ export class MagicArray<T> {
    * Insert items just before original[index] – placed at the outermost left
    * position (before any prior appendLeft calls).
    */
-  prependLeft(index: number, items: T | T[]): this {
-    const arr = Array.isArray(items) ? items : [items]
-    this._chunk(index).left.unshift(...arr)
+  prependLeft(index: number, ...items: T[]): this {
+    this._validateBoundaryIndex(index)
+    this._boundary(this._leftOwner(index)).left.unshift(...items)
     return this
   }
 
@@ -166,9 +163,9 @@ export class MagicArray<T> {
    * Insert items just before original[index] – placed at the innermost left
    * position (after any prior prependLeft calls).
    */
-  appendLeft(index: number, items: T | T[]): this {
-    const arr = Array.isArray(items) ? items : [items]
-    this._chunk(index).left.push(...arr)
+  appendLeft(index: number, ...items: T[]): this {
+    this._validateBoundaryIndex(index)
+    this._boundary(this._leftOwner(index)).left.push(...items)
     return this
   }
 
@@ -176,9 +173,12 @@ export class MagicArray<T> {
    * Insert items just after original[index] – placed at the innermost right
    * position (before any prior appendRight calls).
    */
-  prependRight(index: number, items: T | T[]): this {
-    const arr = Array.isArray(items) ? items : [items]
-    this._chunk(index).right.unshift(...arr)
+  prependRight(index: number, ...items: T[]): this {
+    this._validateBoundaryIndex(index)
+    if (index === this._original.length)
+      this._tailRight.unshift(...items)
+    else
+      this._boundary(index).right.unshift(...items)
     return this
   }
 
@@ -186,9 +186,12 @@ export class MagicArray<T> {
    * Insert items just after original[index] – placed at the outermost right
    * position (after any prior prependRight calls).
    */
-  appendRight(index: number, items: T | T[]): this {
-    const arr = Array.isArray(items) ? items : [items]
-    this._chunk(index).right.push(...arr)
+  appendRight(index: number, ...items: T[]): this {
+    this._validateBoundaryIndex(index)
+    if (index === this._original.length)
+      this._tailRight.push(...items)
+    else
+      this._boundary(index).right.push(...items)
     return this
   }
 
@@ -203,13 +206,13 @@ export class MagicArray<T> {
    */
   remove(start: number, end?: number): this {
     const [s, e] = this._range(start, end)
+
     for (let i = s; i < e; i++) {
-      const c = this._chunk(i)
-      c.content = []
-      c.left = []
-      c.right = []
-      c.removed = true
+      this._content[i] = []
+      this._removed[i] = true
+      this._boundaries.set(i, { right: [], left: [] })
     }
+
     return this
   }
 
@@ -229,26 +232,21 @@ export class MagicArray<T> {
    *
    * `end` defaults to `start + 1` (single element).
    */
-  overwrite(start: number, end: number | undefined, items: T | T[], options?: OverwriteOptions): this {
-    const arr = Array.isArray(items) ? items : [items]
+  overwrite(start: number, end: number | undefined, items: T[], options?: OverwriteOptions): this {
     const [s, e] = this._range(start, end)
     const contentOnly = options?.contentOnly ?? false
 
-    const first = this._chunk(s)
-    if (!contentOnly) {
-      first.left = []
-      first.right = []
-    }
-    first.content = [...arr]
-    first.removed = false
+    const keepBoundary = contentOnly ? this._boundary(s) : undefined
+    const keepRight = keepBoundary ? [...keepBoundary.right] : []
+    const keepLeft = keepBoundary ? [...keepBoundary.left] : []
 
-    for (let i = s + 1; i < e; i++) {
-      const c = this._chunk(i)
-      c.content = []
-      c.left = []
-      c.right = []
-      c.removed = true
-    }
+    this.remove(s, e)
+
+    if (keepBoundary !== undefined)
+      this._boundaries.set(s, { right: keepRight, left: keepLeft })
+
+    this._content[s] = [...items]
+    this._removed[s] = false
     return this
   }
 
@@ -273,29 +271,18 @@ export class MagicArray<T> {
     if (targetIndex >= s && targetIndex <= e)
       throw new Error(`targetIndex (${targetIndex}) must be outside the moved range [${s}, ${e}).`)
 
-    // Collect the chunks to move
-    const moving: Chunk<T>[] = []
-    for (let i = s; i < e; i++) {
-      moving.push({ ...this._chunk(i) })
-    }
+    const base = this._order ?? this._defaultOrder()
+    const moving = base.filter(i => i >= s && i < e)
+    const remaining = base.filter(i => i < s || i >= e)
+    const insertAt = targetIndex === len
+      ? remaining.length
+      : remaining.findIndex(i => i === targetIndex)
 
-    // Build new ordered list of original indices
-    const order: number[] = []
-    for (let i = 0; i < len; i++) {
-      if (i === targetIndex) {
-        for (const c of moving) order.push(c.originalIndex)
-      }
-      if (i < s || i >= e)
-        order.push(i)
-    }
-    if (targetIndex === len) {
-      for (const c of moving) order.push(c.originalIndex)
-    }
-
-    // Re-key the chunks according to the new order, storing new order in a
-    // parallel structure that toArray() can walk. We achieve this by remapping
-    // via a dedicated _order array.
-    (this as unknown as { _order: number[] })._order = order
+    this._order = [
+      ...remaining.slice(0, insertAt),
+      ...moving,
+      ...remaining.slice(insertAt),
+    ]
     return this
   }
 
@@ -305,22 +292,22 @@ export class MagicArray<T> {
 
   /** Return a deep clone of this MagicArray including all pending edits. */
   clone(): MagicArray<T> {
-    const c = new MagicArray<T>([...this._original])
-    for (const [key, chunk] of this._chunks) {
-      c._chunks.set(key, {
-        originalIndex: chunk.originalIndex,
-        intro: [...chunk.intro],
-        left: [...chunk.left],
-        content: [...chunk.content],
-        right: [...chunk.right],
-        outro: [...chunk.outro],
-        removed: chunk.removed,
-      })
+    const cloned = new MagicArray<T>([...this._original])
+
+    for (let i = 0; i < this._original.length; i++) {
+      cloned._content[i] = [...this._content[i]]
+      cloned._removed[i] = this._removed[i]
     }
-    const order = (this as unknown as { _order?: number[] })._order
-    if (order !== undefined)
-      (c as unknown as { _order: number[] })._order = [...order]
-    return c
+    for (const [owner, boundary] of this._boundaries)
+      cloned._boundaries.set(owner, { right: [...boundary.right], left: [...boundary.left] })
+
+    cloned._globalPrepend = [...this._globalPrepend]
+    cloned._globalAppend = [...this._globalAppend]
+    cloned._tailRight = [...this._tailRight]
+    if (this._order !== undefined)
+      cloned._order = [...this._order]
+
+    return cloned
   }
 
   /**
@@ -329,26 +316,22 @@ export class MagicArray<T> {
    */
   reset(start?: number, end?: number): this {
     if (start === undefined) {
-      const sentinel = this._chunk(-1)
-      sentinel.intro = []
-      sentinel.outro = []
+      this._globalPrepend = []
+      this._globalAppend = []
+      this._tailRight = []
+      this._boundaries.clear()
       for (let i = 0; i < this._original.length; i++) {
-        const c = this._chunk(i)
-        c.left = []
-        c.content = [this._original[i]]
-        c.right = []
-        c.removed = false
+        this._content[i] = [this._original[i]]
+        this._removed[i] = false
       }
-      delete (this as unknown as { _order?: number[] })._order
+      this._order = undefined
     }
     else {
       const [s, e] = this._range(start, end)
       for (let i = s; i < e; i++) {
-        const c = this._chunk(i)
-        c.left = []
-        c.content = [this._original[i]]
-        c.right = []
-        c.removed = false
+        this._content[i] = [this._original[i]]
+        this._removed[i] = false
+        this._boundaries.set(i, { right: [], left: [] })
       }
     }
     return this
@@ -356,19 +339,22 @@ export class MagicArray<T> {
 
   /** Returns true if any edit has been applied (including move). */
   hasChanged(): boolean {
-    const order = (this as unknown as { _order?: number[] })._order
-    if (order !== undefined)
+    if (this._order !== undefined)
       return true
-    const sentinel = this._chunk(-1)
-    if (sentinel.intro.length > 0 || sentinel.outro.length > 0)
+    if (this._globalPrepend.length > 0 || this._globalAppend.length > 0)
       return true
+    if (this._tailRight.length > 0)
+      return true
+
+    for (const boundary of this._boundaries.values()) {
+      if (boundary.right.length > 0 || boundary.left.length > 0)
+        return true
+    }
+
     for (let i = 0; i < this._original.length; i++) {
-      const c = this._chunk(i)
-      if (c.removed)
+      if (this._removed[i])
         return true
-      if (c.left.length > 0 || c.right.length > 0)
-        return true
-      if (c.content.length !== 1 || c.content[0] !== this._original[i])
+      if (this._content[i].length !== 1 || this._content[i][0] !== this._original[i])
         return true
     }
     return false
@@ -380,39 +366,35 @@ export class MagicArray<T> {
 
   /**
    * Return the edited sub-array corresponding to original [start, end).
-   * Includes left/right insertions for each element in the range,
-   * but NOT the global intro/outro.
-   * Throws if any element in the range has been removed.
+   * Semantics are aligned with magic-string.slice(start, end).
    */
   slice(start: number, end?: number): T[] {
     const [s, e] = this._range(start, end)
     const result: T[] = []
+
     for (let i = s; i < e; i++) {
-      const c = this._chunk(i)
-      if (c.removed)
-        throw new Error(`Cannot slice: original[${i}] has been removed.`)
-      result.push(...c.left, ...c.content, ...c.right)
+      const boundary = this._boundaries.get(i)
+      if (boundary !== undefined)
+        result.push(...boundary.right)
+      if (!this._removed[i])
+        result.push(...this._content[i])
+      if (boundary !== undefined)
+        result.push(...boundary.left)
     }
+
     return result
   }
 
   /**
-   * Return a clone of this MagicArray that retains only the content
-   * corresponding to original [start, end).
-   * The global intro/outro are NOT carried over.
+   * Return a clone scoped to original [start, end), matching magic-string.snip().
    */
   snip(start: number, end?: number): MagicArray<T> {
     const [s, e] = this._range(start, end)
-    const subOriginal = (this._original as T[]).slice(s, e)
-    const snipped = new MagicArray<T>(subOriginal)
-    for (let i = s; i < e; i++) {
-      const src = this._chunk(i)
-      const dst = snipped._chunks.get(i - s)!
-      dst.left = [...src.left]
-      dst.content = [...src.content]
-      dst.right = [...src.right]
-      dst.removed = src.removed
-    }
+    const snipped = this.clone()
+    if (e < this._original.length)
+      snipped.remove(e, this._original.length)
+    if (s > 0)
+      snipped.remove(0, s)
     return snipped
   }
 
@@ -423,18 +405,25 @@ export class MagicArray<T> {
   /** Return the final edited array. */
   toArray(): T[] {
     const result: T[] = []
-    const sentinel = this._chunk(-1)
-    result.push(...sentinel.intro)
 
-    const order: number[] = (this as unknown as { _order?: number[] })._order
-      ?? Array.from({ length: this._original.length }, (_, i) => i)
+    result.push(...this._globalPrepend)
+    const startBoundary = this._boundaries.get(-1)
+    if (startBoundary !== undefined)
+      result.push(...startBoundary.left)
 
+    const order = this._order ?? this._defaultOrder()
     for (const i of order) {
-      const c = this._chunk(i)
-      result.push(...c.left, ...c.content, ...c.right)
+      const boundary = this._boundaries.get(i)
+      if (boundary !== undefined)
+        result.push(...boundary.right)
+      if (!this._removed[i])
+        result.push(...this._content[i])
+      if (boundary !== undefined)
+        result.push(...boundary.left)
     }
 
-    result.push(...sentinel.outro)
+    result.push(...this._globalAppend)
+    result.push(...this._tailRight)
     return result
   }
 
@@ -462,6 +451,8 @@ export class MagicArray<T> {
 
   /** Returns true if the original element at `index` has been removed. */
   hasRemoved(index: number): boolean {
-    return this._chunk(index).removed
+    if (index < 0 || index >= this._original.length)
+      throw new RangeError(`Index ${index} is out of bounds.`)
+    return this._removed[index]
   }
 }
