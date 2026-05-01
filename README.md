@@ -15,12 +15,12 @@ pnpm add @zvonimirsun/magic-array
 ## 快速开始
 
 ```ts
-import {MagicArray} from '@zvonimirsun/magic-array'
+import { MagicArray } from '@zvonimirsun/magic-array'
 
 const arr = new MagicArray(['a', 'b', 'c'])
 
-arr.prependLeft(1, '<')   // 在 original[1]（'b'）之前插入 '<'
-arr.prependRight(1, '>')  // 在 original[1]（'b'）之后插入 '>'
+arr.prependLeft(1, '<') // 在 original[1]（'b'）之前插入 '<'
+arr.prependRight(1, '>') // 在 original[1]（'b'）之后插入 '>'
 
 arr.toArray() // ['a', '<', 'b', '>', 'c']
 ```
@@ -28,8 +28,8 @@ arr.toArray() // ['a', '<', 'b', '>', 'c']
 编辑后，索引 `1` 仍然指向 `'b'`：
 
 ```ts
-arr.remove(0)   // 移除 original[0]（'a'）
-arr.toArray()   // ['<', 'b', '>', 'c']
+arr.remove(0) // 移除 original[0]（'a'）
+arr.toArray() // ['<', 'b', '>', 'c']
 ```
 
 ## API

@@ -67,7 +67,7 @@ export interface OverwriteOptions {
 // MagicArray
 // ---------------------------------------------------------------------------
 
-type Boundary<T> = { right: T[]; left: T[] }
+interface Boundary<T> { right: T[], left: T[] }
 
 export class MagicArray<T> {
   private readonly _original: ReadonlyArray<T>

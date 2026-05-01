@@ -1,6 +1,6 @@
 import MagicString from 'magic-string'
 import { describe, expect, it } from 'vitest'
-import { MagicArray } from '../src/index'
+import { MagicArray } from '../src'
 
 function runPair(source: string, apply: (m: MagicArray<string>, s: MagicString) => void) {
   const m = new MagicArray(source.split(''))
@@ -179,4 +179,3 @@ describe('coverage matrix', () => {
     expect(snipped.toArray()).not.toEqual(before)
   })
 })
-
