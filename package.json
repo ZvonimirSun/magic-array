@@ -1,7 +1,7 @@
 {
   "name": "@zvonimirsun/magic-array",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Manipulate arrays based on original indices, inspired by magic-string",
   "exports": {
     ".": {
